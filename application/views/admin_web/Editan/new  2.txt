@@ -1,0 +1,95 @@
+<?php if(!defined('BASEPATH')) exit('No direct script access allowed');
+class C_slide extends CI_Controller{
+    function __construct (){
+		session_start();
+        parent::__construct();
+		$this->load->model(array('m_slide','m_login'));
+		if(!isset($_SESSION['username'])){
+			redirect('admin_web/c_login','refresh');
+		}
+    }
+	function index(){
+		$data['title'] = 'Data Slide';		
+		$data['browse_slide'] = $this->m_slide->get_slide_all();
+		$data['main'] = 'admin_web/v_slide';
+		$this->load->view('admin_web/v_main', $data);
+	}
+	
+    function tambah_slide(){
+    $this->load->library('form_validation');
+
+    $this->form_validation->set_rules('nama_slide','Nama Slide','trim|required');
+    $this->form_validation->set_rules('keterangan','Keterangan','trim|required');
+    $this->form_validation->set_rules('userfile', 'quiz_image_path', 'callback__do_upload');
+    
+		if($this->form_validation->run()!=false){
+			$nama_slide =   $this->input->post('nama_slide');
+			$keterangan =   $this->input->post('keterangan');
+			$tgl_upload       =   $this->input->post('tgl_upload');
+
+
+			$temp=$this->upload->data();
+			$image=$temp['file_name'];// to get image file name rom upload script , as it could be stored in the databae
+
+			//execute the registration query
+			$data = $this->m_slide->t_slide($image,$nama_slide,$keterangan,$tgl_upload);
+			//if $data == TRUE
+			if($data){			
+				$data_1['title'] = 'Upload Sukses';
+				$data_1['browse_slide'] = $this->m_slide->get_slide_all();
+				$data_1['main'] = 'admin_web/v_slide';
+				$this->load->view('admin_web/v_main', $data_1);
+			}else{
+				$data_2['title'] = 'Upload Gagal';
+				$data_2['main'] = 'admin_web/v_diisi';
+				$this->load->iew('admin_web/v_main',$data_2);
+			}
+		}else{
+			$data['title'] = 'Data Harus diisi semua';
+			$data['browse_slide'] = $this->m_slide->get_slide_all();
+			$data['main'] = 'admin_web/v_slide';
+			$this->load->view('admin_web/v_main', $data);
+		}
+	}
+    public function _do_upload(){
+        $config['upload_path'] = './images/';
+        $config['allowed_types'] = 'gif|jpg|png';
+        $config['max_size'] = '2000';
+        $config['max_width']  = '4000';
+        $config['max_height']  = '4000';
+        $field_name = 'userfile';
+        $this->load->library('upload', $config);
+        if ( ! $this->upload->do_upload($field_name)){
+              $this->form_validation->set_message('_do_upload', $this->upload->display_errors());
+              return FALSE;
+        }else{
+            $image_data = $this->upload->data();
+            $filename = $image_data['file_name'];
+            $config = array(
+					  'source_image' => $image_data['full_path'],
+					  'new_image' => './images/thumbs/',
+					  'maintain_ratio' => false,
+					  'width' => 960,
+					  'height' => 400
+            );
+            $this->load->library('image_lib', $config);
+            $this->image_lib->resize();
+            return TRUE;
+        }
+    }
+	//edit slide di halaman admin
+	function edit_slide($id){
+		if($this->input->post('submit')){
+			$this->m_slide->e_slide($id);
+			redirect('admin_web/c_slide');
+		}
+		$data['hasil'] = $this->m_slide->get_by_id($id);
+		$data['title'] = 'Edit Data Slide';
+		$data['main'] = 'admin_web/v_edit_slide';
+		$this->load->view('admin_web/v_main',$data);
+	}
+	function delete_slide($id){
+		$this->m_slide->d_slide($id);
+		redirect('admin_web/c_slide');
+	}
+}
